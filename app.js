@@ -1,0 +1,11 @@
+const sid = localStorage.getItem('abdolah_session') || crypto.randomUUID(); localStorage.setItem('abdolah_session',sid);
+const $ = id => document.getElementById(id); let lastText='';
+async function api(path,data){const r=await fetch(path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...data,sessionId:sid})});const j=await r.json();if(!r.ok)throw new Error(j.message||j.error||`HTTP ${r.status}`);return j}
+function bubble(text,kind=''){const el=document.createElement('div');el.className=`bubble ${kind}`;el.textContent=text;$('messages').append(el);$('messages').scrollTop=$('messages').scrollHeight;}
+async function health(){try{const r=await fetch('/api/health');const j=await r.json();$('health').textContent=j.ok?'متصل':'غير متصل';$('browserState').textContent=j.browserConfigured?'جاهز':'بانتظار الإعداد';$('statusText').textContent=j.browserConfigured?'الخدمات متصلة':'API يعمل — المتصفح غير مربوط';}catch{$('health').textContent='غير متاح';$('statusText').textContent='تعذر الاتصال بالخادم';}}
+$('navigateForm').onsubmit=async e=>{e.preventDefault();try{$('output').textContent='جارٍ فتح الموقع...';const r=await api('/api/browser/navigate',{url:$('url').value});$('output').textContent=`تم فتح: ${r.title}\n${r.url}`;bubble(`تم فتح ${r.title} بنجاح`);}catch(err){$('output').textContent=`خطأ: ${err.message}`;bubble(err.message,'error');}};
+$('commandForm').onsubmit=async e=>{e.preventDefault();const command=$('command').value.trim();if(!command)return;bubble(command,'user');$('command').value='';try{const r=await api('/api/agent/run',{command});bubble(JSON.stringify(r.result||r,null,2));}catch(err){bubble(err.message,'error');}};
+$('extract').onclick=async()=>{try{const r=await api('/api/browser/extract',{});lastText=r.text;$('output').textContent=`${r.title}\n${r.url}\n\n${r.text}`;}catch(e){$('output').textContent=e.message;}};
+$('shot').onclick=async()=>{try{const r=await api('/api/browser/screenshot',{});$('screen').innerHTML='';const img=document.createElement('img');img.src=`data:${r.mimeType};base64,${r.data}`;$('screen').append(img);}catch(e){$('output').textContent=e.message;}};
+$('copy').onclick=async()=>{if(!lastText)return $('output').textContent='لا يوجد نص مستخرج بعد.';await navigator.clipboard.writeText(lastText);$('output').textContent='تم نسخ النص.';};
+health();
